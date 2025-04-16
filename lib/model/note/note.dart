@@ -5,21 +5,25 @@ part 'note.g.dart';
 @HiveType(typeId: 0)
 class Note extends HiveObject {
   @HiveField(0)
-  int id;
+  final int id;
 
   @HiveField(1)
-  String title;
+  final String title;
 
   @HiveField(2)
-  String text;
+  final String text;
 
   @HiveField(3)
-  DateTime createdAt;
+  final List<String> tags;
+
+  @HiveField(4)
+  final DateTime createdAt;
 
   Note({
     required this.id,
     required this.title,
     required this.text,
+    this.tags = const [],
     required this.createdAt,
   });
 
@@ -28,12 +32,14 @@ class Note extends HiveObject {
     int? id,
     String? title,
     String? text,
+    List<String>? tags,
     DateTime? createdAt,
   }) {
     return Note(
       id: id ?? this.id,
       title: title ?? this.title,
       text: text ?? this.text,
+      tags: tags ?? this.tags,
       createdAt: createdAt ?? this.createdAt,
     );
   }

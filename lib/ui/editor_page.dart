@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' hide Text;
-import 'package:notes/model/note.dart';
+import 'package:hive/hive.dart';
+import 'package:notes/model/note/note.dart';
+import 'package:notes/model/tags/tags.dart';
 import 'package:notes/service/note_service.dart';
 import 'package:notes/utils/injection.dart';
 
@@ -18,6 +20,8 @@ class EditorPage extends StatefulWidget {
 class _EditorPageState extends State<EditorPage> {
   QuillController _controller = QuillController.basic();
   final TextEditingController _titleController = TextEditingController();
+  final Box<Tag> tagBox = Hive.box<Tag>('tags');
+  final Set<String> _selectedTags = {};
 
   @override
   void initState() {
@@ -28,9 +32,20 @@ class _EditorPageState extends State<EditorPage> {
         document: Document.fromJson(jsonDecode(widget.note!.text)),
         selection: const TextSelection.collapsed(offset: 0),
       );
+      _selectedTags.addAll(widget.note!.tags);
     } else {
       _controller = QuillController.basic();
     }
+  }
+
+  void _toggleTag(String tag) {
+    setState(() {
+      if (_selectedTags.contains(tag)) {
+        _selectedTags.remove(tag);
+      } else {
+        _selectedTags.add(tag);
+      }
+    });
   }
 
   void _saveNote() {
@@ -49,15 +64,17 @@ class _EditorPageState extends State<EditorPage> {
     if (widget.note != null) {
       final isTitleChanged = widget.note!.title != title;
       final isContentChanged = widget.note!.text != content;
+      final isTagChanged = !_setEquals(widget.note!.tags.toSet(), _selectedTags);
 
-      if (!isTitleChanged && !isContentChanged) {
-        Navigator.pop(context); // tidak ada perubahan, cukup keluar
+      if (!isTitleChanged && !isContentChanged && !isTagChanged) {
+        Navigator.pop(context);
         return;
       }
 
       final updatedNote = widget.note!.copyWith(
         title: title,
         text: content,
+        tags: _selectedTags.toList(),
       );
 
       noteService.updateNote(updatedNote.id, updatedNote);
@@ -67,6 +84,7 @@ class _EditorPageState extends State<EditorPage> {
         title: title,
         text: content,
         createdAt: DateTime.now(),
+        tags: _selectedTags.toList(),
       );
       noteService.addNote(note);
     }
@@ -74,18 +92,20 @@ class _EditorPageState extends State<EditorPage> {
     Navigator.pop(context);
   }
 
+  bool _setEquals(Set a, Set b) {
+    return a.length == b.length && a.containsAll(b);
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeColor = Colors.deepPurpleAccent;
+    final tags = tagBox.values.toList();
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: themeColor,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Editor Catatan',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Editor Catatan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -97,21 +117,7 @@ class _EditorPageState extends State<EditorPage> {
       ),
       body: WillPopScope(
         onWillPop: () async {
-          final title = _titleController.text.trim();
-          final content = jsonEncode(_controller.document.toDelta().toJson());
-
-          if (widget.note != null) {
-            final isTitleChanged = widget.note!.title != title;
-            final isContentChanged = widget.note!.text != content;
-
-            if (isTitleChanged || isContentChanged) {
-              _saveNote(); // Simpan otomatis jika ada perubahan
-            }
-          } else {
-            if (title.isNotEmpty) {
-              _saveNote(); // Simpan catatan baru jika ada judul
-            }
-          }
+          _saveNote();
           return true;
         },
         child: Column(
@@ -121,8 +127,8 @@ class _EditorPageState extends State<EditorPage> {
               child: QuillSimpleToolbar(
                 controller: _controller,
                 config: QuillSimpleToolbarConfig(
-                  showColorButton: false,
-                  showBackgroundColorButton: false,
+                  showColorButton: true,
+                  showBackgroundColorButton: true,
                   showHeaderStyle: true,
                   multiRowsDisplay: false,
                   toolbarIconAlignment: WrapAlignment.start,
@@ -131,7 +137,7 @@ class _EditorPageState extends State<EditorPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
               child: TextField(
                 controller: _titleController,
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
@@ -140,9 +146,7 @@ class _EditorPageState extends State<EditorPage> {
                   filled: true,
                   fillColor: Colors.white,
                   prefixIcon: const Icon(Icons.title),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: themeColor, width: 2),
                     borderRadius: BorderRadius.circular(12),
@@ -150,15 +154,38 @@ class _EditorPageState extends State<EditorPage> {
                 ),
               ),
             ),
+            if (tags.isNotEmpty)
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: tags.map((tag) {
+                    final isSelected = _selectedTags.contains(tag.name);
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(tag.name),
+                        selected: isSelected,
+                        onSelected: (_) => _toggleTag(tag.name),
+                        backgroundColor: tag.color.withOpacity(0.2),
+                        selectedColor: tag.color,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
                 child: Card(
                   elevation: 2,
                   color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: QuillEditor.basic(

@@ -1,52 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
-import 'package:hive/hive.dart';
-import 'package:hive_flutter/adapters.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:notes/model/note/note.dart';
+import 'package:notes/model/tags/tags.dart';
 import 'package:notes/ui/home/home_page.dart';
 import 'package:notes/utils/injection.dart';
-
-import 'model/note.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive
+  // Init Hive
   await Hive.initFlutter();
   Hive.registerAdapter(NoteAdapter());
+  Hive.registerAdapter(TagAdapter());
 
-  // Open the Box for storing notes
-  var noteBox = await Hive.openBox<Note>('notes');
+  // Open boxes
+  final noteBox = await Hive.openBox<Note>('notes');
+  final tagBox = await Hive.openBox<Tag>('tags');
 
-  // Set up dependency injection with the noteBox
-  setupLocator(noteBox);
+  // Set up GetIt locator
+  setupLocator(noteBox, tagBox);
 
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  @override
-  _MyAppState createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "Notes App",
       debugShowCheckedModeBanner: false,
       home: const HomePage(),
-      // 🌍 Tambahkan localizations di sini
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
-        FlutterQuillLocalizations.delegate, // ✅ Ini penting untuk FlutterQuill
+        FlutterQuillLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('en'), // Tambahkan 'id' kalau kamu mau bahasa Indonesia juga
+        Locale('en'),
         Locale('id'),
       ],
     );

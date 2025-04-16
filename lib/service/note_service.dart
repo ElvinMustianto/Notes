@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 
-import '../model/note.dart';
+import '../model/note/note.dart';
 
 class NoteService {
   final Box<Note> _noteBox;

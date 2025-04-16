@@ -1,7 +1,8 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
-import 'package:notes/model/note.dart';
+import 'package:notes/model/note/note.dart';
 
 typedef NoteCallback = void Function(Note note);
 
@@ -26,6 +27,20 @@ class NoteCard extends StatelessWidget {
     required this.onDelete,
     required this.onCheckboxChanged,
   });
+
+  // Map tag names to specific colors
+  Color _getTagColor(String tag) {
+    switch (tag.toLowerCase()) {
+      case 'artis':
+        return Colors.red;  // Red for "Artis"
+      case 'tugas':
+        return Colors.green;  // Green for "Tugas"
+      case 'senin':
+        return Colors.blue;  // Blue for "Senin"
+      default:
+        return Colors.grey;  // Default color for other tags
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,51 +95,47 @@ class NoteCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 6),
-                          Expanded(
-                            child: Text(
-                              plainText,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontFamily: 'Oswald',
-                                color: Colors.black87,
-                              ),
-                              maxLines: 4,
-                              overflow: TextOverflow.ellipsis,
+                          const SizedBox(height: 8),
+                          Text(
+                            plainText,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              fontFamily: 'Oswald',
+                              color: Colors.black87,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Dibuat',
-                          style: TextStyle(fontSize: 13, color: Colors.grey, fontFamily: 'Oswald'),
-                        ),
-                        Text(
-                          DateFormat('dd MMM yyyy • HH:mm').format(note.createdAt),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Oswald',
-                          ),
-                        ),
-                      ],
+                  if (note.tags.isNotEmpty) ...[
+                    const Divider(height: 1, color: Colors.black12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Wrap(
+                        children: note.tags.map((tag) {
+                          return Chip(
+                            backgroundColor: _getTagColor(tag),
+                            label: Text(
+                              tag,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
           ),
           if (isSelectionMode)
             Positioned(
-              top: 8,
               right: 8,
+              top: 8,
               child: Checkbox(
                 value: isSelected,
                 onChanged: onCheckboxChanged,

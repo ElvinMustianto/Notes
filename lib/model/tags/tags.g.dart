@@ -1,41 +1,35 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'note.dart';
+part of 'tags.dart';
 
 // **************************************************************************
 // TypeAdapterGenerator
 // **************************************************************************
 
-class NoteAdapter extends TypeAdapter<Note> {
+class TagAdapter extends TypeAdapter<Tag> {
   @override
-  final int typeId = 0;
+  final int typeId = 1;
 
   @override
-  Note read(BinaryReader reader) {
+  Tag read(BinaryReader reader) {
     final numOfFields = reader.readByte();
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Note(
-      id: fields[0] as int,
-      title: fields[1] as String,
-      text: fields[2] as String,
-      createdAt: fields[3] as DateTime,
+    return Tag(
+      name: fields[0] as String,
+      colorValue: fields[1] as int,
     );
   }
 
   @override
-  void write(BinaryWriter writer, Note obj) {
+  void write(BinaryWriter writer, Tag obj) {
     writer
-      ..writeByte(4)
-      ..writeByte(0)
-      ..write(obj.id)
-      ..writeByte(1)
-      ..write(obj.title)
       ..writeByte(2)
-      ..write(obj.text)
-      ..writeByte(3)
-      ..write(obj.createdAt);
+      ..writeByte(0)
+      ..write(obj.name)
+      ..writeByte(1)
+      ..write(obj.colorValue);
   }
 
   @override
@@ -44,7 +38,7 @@ class NoteAdapter extends TypeAdapter<Note> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is NoteAdapter &&
+      other is TagAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

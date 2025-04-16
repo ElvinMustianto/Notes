@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:notes/model/note.dart';
+import 'package:notes/model/note/note.dart';
 import 'package:notes/service/note_service.dart';
 import 'package:notes/ui/editor_page.dart';
 import 'package:notes/ui/home/note_card.dart';
+import 'package:notes/ui/tags/tag_management_page.dart';
 import 'package:notes/utils/injection.dart';
 
 import 'note_helper.dart';
@@ -22,6 +24,7 @@ class _HomePageState extends State<HomePage> {
   Set<int> selectedNoteIds = {};
   bool isSearching = false;
   final TextEditingController searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -34,22 +37,26 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
   void _onSearchChanged() {
-    final keyword = searchController.text.toLowerCase();
-    setState(() {
-      filteredNotes = notes.where((note) {
-        final plainText = getPlainText(note.text).toLowerCase();
-        return note.title.toLowerCase().contains(keyword) ||
-            plainText.contains(keyword);
-      }).toList();
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      final keyword = searchController.text.toLowerCase();
+      setState(() {
+        filteredNotes = notes.where((note) {
+          final plainText = getPlainText(note.text).toLowerCase();
+          return note.title.toLowerCase().contains(keyword) ||
+              plainText.contains(keyword);
+        }).toList();
+      });
     });
   }
 
   void refreshNotes() {
-    notes = noteService.getAllNotes();
+    notes = noteService.getAllNotes() ?? [];
     _onSearchChanged();
   }
 
@@ -72,20 +79,41 @@ class _HomePageState extends State<HomePage> {
   }
 
   void deleteSelectedNotes() {
-    for (var id in selectedNoteIds) {
-      noteService.deleteNote(id);
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${selectedNoteIds.length} catatan dihapus'),
-        duration: const Duration(seconds: 2),
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Konfirmasi Hapus'),
+        content: Text('Apakah Anda yakin ingin menghapus ${selectedNoteIds.length} catatan?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              for (var id in selectedNoteIds) {
+                noteService.deleteNote(id);
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${selectedNoteIds.length} catatan dihapus'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              setState(() {
+                selectedNoteIds.clear();
+                isSelectionMode = false;
+                refreshNotes();
+              });
+              Navigator.of(context).pop();
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
       ),
     );
-    setState(() {
-      selectedNoteIds.clear();
-      isSelectionMode = false;
-      refreshNotes();
-    });
   }
 
   @override
@@ -106,9 +134,7 @@ class _HomePageState extends State<HomePage> {
           ),
         )
             : Text(
-          isSelectionMode
-              ? '${selectedNoteIds.length} Dipilih'
-              : 'CATATAN',
+          isSelectionMode ? '${selectedNoteIds.length} Dipilih' : 'CATATAN',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
@@ -119,7 +145,7 @@ class _HomePageState extends State<HomePage> {
         centerTitle: true,
         backgroundColor: Colors.deepPurpleAccent,
         actions: [
-          if (!isSelectionMode)
+          if (!isSelectionMode) ...[
             IconButton(
               icon: Icon(
                 isSearching ? Icons.close : Icons.search,
@@ -134,6 +160,20 @@ class _HomePageState extends State<HomePage> {
                 });
               },
             ),
+            IconButton(
+              icon: const Icon(Icons.label, color: Colors.white),
+              tooltip: 'Kelola Tag',
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TagManagementPage()),
+                );
+                setState(() {
+                  refreshNotes();
+                });
+              },
+            ),
+          ],
           if (isSelectionMode)
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.white),
@@ -173,7 +213,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisCount: screenWidth > 600 ? 4 : 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 0.8,
+          childAspectRatio: screenWidth > 600 ? 0.8 : 0.9, // Adjust for smaller screens
         ),
         itemCount: filteredNotes.length,
         itemBuilder: (context, index) {
