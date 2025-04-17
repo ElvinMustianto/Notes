@@ -22,7 +22,14 @@ class _ColorPickerDialogState extends State<ColorPickerDialog> {
     Colors.brown,
     Colors.pink,
     Colors.teal,
+    Colors.cyan,
+    Colors.indigo,
+    Colors.yellow,
+    Colors.lime,
+    Colors.amber,
+    Colors.grey,
   ];
+
 
   @override
   void initState() {
