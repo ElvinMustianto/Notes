@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:notes/model/note/note.dart';
+import 'package:notes/model/tags/tags.dart';
 import 'package:notes/service/note_service.dart';
 import 'package:notes/ui/editor_page.dart';
 import 'package:notes/ui/home/note_card.dart';
 import 'package:notes/ui/tags/tag_management_page.dart';
 import 'package:notes/utils/injection.dart';
-
 import 'note_helper.dart';
 
 class HomePage extends StatefulWidget {
@@ -25,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   bool isSearching = false;
   final TextEditingController searchController = TextEditingController();
   Timer? _debounce;
+  String? selectedTagFilter;
 
   @override
   void initState() {
@@ -56,8 +58,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   void refreshNotes() {
-    notes = noteService.getAllNotes() ?? [];
-    _onSearchChanged();
+    print("Selected tag filter: $selectedTagFilter");
+
+    List<Note> updatedNotes = noteService.getAllNotes();
+
+    // Filter catatan berdasarkan tag
+    if (selectedTagFilter != null) {
+      updatedNotes = updatedNotes.where((note) {
+        // Pastikan tag name cocok dengan filter yang dipilih
+        return note.tags.any((tag) => tag.name == selectedTagFilter);
+      }).toList();
+    }
+
+    final keyword = searchController.text.toLowerCase();
+    updatedNotes = updatedNotes.where((note) {
+      final plainText = getPlainText(note.text).toLowerCase();
+      return note.title.toLowerCase().contains(keyword) || plainText.contains(keyword);
+    }).toList();
+
+    setState(() {
+      filteredNotes = updatedNotes;
+    });
+    print("Filtered notes: ${filteredNotes.length}");
   }
 
   void toggleSelectionMode(bool enabled) {
@@ -119,6 +141,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final tagBox = Hive.box<Tag>('tags');
 
     return Scaffold(
       appBar: AppBar(
@@ -200,71 +223,125 @@ class _HomePageState extends State<HomePage> {
         },
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
-      body: filteredNotes.isEmpty
-          ? const Center(
-        child: Text(
-          'Belum ada catatan!',
-          style: TextStyle(fontFamily: 'Oswald', fontSize: 18),
-        ),
-      )
-          : GridView.builder(
-        padding: const EdgeInsets.all(16.0),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: screenWidth > 600 ? 4 : 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: screenWidth > 600 ? 0.8 : 0.9, // Adjust for smaller screens
-        ),
-        itemCount: filteredNotes.length,
-        itemBuilder: (context, index) {
-          final note = filteredNotes[index];
-          final plainText = getPlainText(note.text);
-          final isSelected = selectedNoteIds.contains(note.id);
-
-          return NoteCard(
-            note: note,
-            plainText: plainText,
-            isSelected: isSelected,
-            isSelectionMode: isSelectionMode,
-            onLongPress: () {
-              toggleSelectionMode(true);
-              toggleNoteSelection(note.id);
-            },
-            onTap: () async {
-              if (isSelectionMode) {
-                toggleNoteSelection(note.id);
-              } else {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EditorPage(note: note),
+      body: Column(
+        children: [
+          if (tagBox.isNotEmpty)
+            SizedBox(
+              height: 48,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: const Text('Semua'),
+                      selected: selectedTagFilter == null,
+                      onSelected: (_) {
+                        setState(() {
+                          selectedTagFilter = null;
+                          refreshNotes();
+                        });
+                      },
+                    ),
                   ),
-                );
-                setState(() {
-                  refreshNotes();
-                });
-              }
-            },
-            onDelete: () {
-              setState(() {
-                noteService.deleteNote(note.id);
-                refreshNotes();
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Catatan "${note.title}" dihapus',
-                    style: const TextStyle(fontFamily: 'Oswald'),
-                  ),
-                  duration: const Duration(seconds: 2),
+                  ...tagBox.values.map((tag) {
+                    final isSelected = selectedTagFilter == tag.name;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: FilterChip(
+                        label: Text(tag.name),
+                        selected: isSelected,
+                        backgroundColor: tag.color.withOpacity(0.2),
+                        selectedColor: tag.color,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        onSelected: (_) {
+                          setState(() {
+                            selectedTagFilter = isSelected ? null : tag.name;
+                            refreshNotes();
+                          });
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          if (filteredNotes.isEmpty)
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Belum ada catatan!',
+                  style: TextStyle(fontFamily: 'Oswald', fontSize: 18),
                 ),
-              );
-            },
-            onCheckboxChanged: (_) {
-              toggleNoteSelection(note.id);
-            },
-          );
-        },
+              ),
+            )
+          else
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(16.0),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: screenWidth > 600 ? 4 : 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: screenWidth > 600 ? 0.8 : 0.9,
+                ),
+                itemCount: filteredNotes.length,
+                itemBuilder: (context, index) {
+                  final note = filteredNotes[index];
+                  final plainText = getPlainText(note.text);
+                  final isSelected = selectedNoteIds.contains(note.id);
+
+                  return NoteCard(
+                    note: note,
+                    plainText: plainText,
+                    isSelected: isSelected,
+                    isSelectionMode: isSelectionMode,
+                    onLongPress: () {
+                      toggleSelectionMode(true);
+                      toggleNoteSelection(note.id);
+                    },
+                    onTap: () async {
+                      if (isSelectionMode) {
+                        toggleNoteSelection(note.id);
+                      } else {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditorPage(note: note),
+                          ),
+                        );
+                        setState(() {
+                          refreshNotes();
+                        });
+                      }
+                    },
+                    onDelete: () {
+                      setState(() {
+                        noteService.deleteNote(note.id);
+                        refreshNotes();
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Catatan "${note.title}" dihapus',
+                            style: const TextStyle(fontFamily: 'Oswald'),
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    onCheckboxChanged: (_) {
+                      toggleNoteSelection(note.id);
+                    },
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }

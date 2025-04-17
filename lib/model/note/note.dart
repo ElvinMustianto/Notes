@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:notes/model/tags/tags.dart';
 
 part 'note.g.dart';
 
@@ -14,7 +15,7 @@ class Note extends HiveObject {
   final String text;
 
   @HiveField(3)
-  final List<String> tags;
+  final List<Tag> tags;
 
   @HiveField(4)
   final DateTime createdAt;
@@ -32,7 +33,7 @@ class Note extends HiveObject {
     int? id,
     String? title,
     String? text,
-    List<String>? tags,
+    List<Tag>? tags,
     DateTime? createdAt,
   }) {
     return Note(

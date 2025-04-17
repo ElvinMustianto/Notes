@@ -14,4 +14,14 @@ class Tag extends HiveObject {
   Tag({required this.name, this.colorValue = 0xFF1565C0});
 
   Color get color => Color(colorValue);
+
+  copyWith({
+    required String name,
+    required int colorValue
+  }) {
+    return Tag(
+        name: name,
+        colorValue: colorValue
+    );
+  }
 }

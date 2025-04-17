@@ -21,24 +21,25 @@ class _EditorPageState extends State<EditorPage> {
   QuillController _controller = QuillController.basic();
   final TextEditingController _titleController = TextEditingController();
   final Box<Tag> tagBox = Hive.box<Tag>('tags');
-  final Set<String> _selectedTags = {};
+  final Set<Tag> _selectedTags = {};
 
   @override
   void initState() {
     super.initState();
+
     if (widget.note != null) {
       _titleController.text = widget.note!.title;
       _controller = QuillController(
         document: Document.fromJson(jsonDecode(widget.note!.text)),
         selection: const TextSelection.collapsed(offset: 0),
       );
-      _selectedTags.addAll(widget.note!.tags);
+      _selectedTags.addAll(widget.note!.tags); // Sekarang sudah List<Tag>
     } else {
       _controller = QuillController.basic();
     }
   }
 
-  void _toggleTag(String tag) {
+  void _toggleTag(Tag tag) {
     setState(() {
       if (_selectedTags.contains(tag)) {
         _selectedTags.remove(tag);
@@ -92,7 +93,7 @@ class _EditorPageState extends State<EditorPage> {
     Navigator.pop(context);
   }
 
-  bool _setEquals(Set a, Set b) {
+  bool _setEquals(Set<Tag> a, Set<Tag> b) {
     return a.length == b.length && a.containsAll(b);
   }
 
@@ -161,13 +162,13 @@ class _EditorPageState extends State<EditorPage> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: tags.map((tag) {
-                    final isSelected = _selectedTags.contains(tag.name);
+                    final isSelected = _selectedTags.contains(tag);
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
                         label: Text(tag.name),
                         selected: isSelected,
-                        onSelected: (_) => _toggleTag(tag.name),
+                        onSelected: (_) => _toggleTag(tag),
                         backgroundColor: tag.color.withOpacity(0.2),
                         selectedColor: tag.color,
                         labelStyle: TextStyle(
@@ -205,3 +206,4 @@ class _EditorPageState extends State<EditorPage> {
     );
   }
 }
+

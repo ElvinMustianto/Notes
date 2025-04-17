@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
@@ -28,18 +27,8 @@ class NoteCard extends StatelessWidget {
     required this.onCheckboxChanged,
   });
 
-  // Map tag names to specific colors
-  Color _getTagColor(String tag) {
-    switch (tag.toLowerCase()) {
-      case 'artis':
-        return Colors.red;  // Red for "Artis"
-      case 'tugas':
-        return Colors.green;  // Green for "Tugas"
-      case 'senin':
-        return Colors.blue;  // Blue for "Senin"
-      default:
-        return Colors.grey;  // Default color for other tags
-    }
+  String _formatDate(DateTime date) {
+    return DateFormat('dd MMM yyyy • HH:mm').format(date);
   }
 
   @override
@@ -107,28 +96,47 @@ class NoteCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(height: 8),
                         ],
                       ),
                     ),
                   ),
-                  if (note.tags.isNotEmpty) ...[
                     const Divider(height: 1, color: Colors.black12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Wrap(
-                        children: note.tags.map((tag) {
-                          return Chip(
-                            backgroundColor: _getTagColor(tag),
-                            label: Text(
-                              tag,
-                              style: const TextStyle(color: Colors.white),
+                    Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6),
+                            child: Wrap(
+                              spacing: 6,
+                              children: note.tags.map((tag) {
+                                return Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: tag.color,
+                                  ),
+                                );
+                              }).toList(),
                             ),
-                          );
-                        }).toList(),
-                      ),
+                          ),
+                        ),
+                        Container(
+                          padding: EdgeInsets.fromLTRB(10, 0, 0, 6),
+                          child: Text(
+                            _formatDate(note.createdAt),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ],
               ),
             ),
           ),
